@@ -1,9 +1,13 @@
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
+import { Redirect } from 'expo-router';
+import { useState } from 'react';
+import type { Session } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 
 import { useColorScheme } from '@/components/useColorScheme';
 
@@ -14,7 +18,7 @@ export {
 
 export const unstable_settings = {
   // Ensure that reloading on `/modal` keeps a back button present.
-  initialRouteName: '(tabs)',
+  initialRouteName: 'auth',
 };
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -45,10 +49,53 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
+  const router = useRouter();
+  const segments = useSegments();
+
+  const [authReady, setAuthReady] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const bootstrap = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!mounted) return;
+      setSession(data.session);
+      setAuthReady(true);
+    };
+
+    bootstrap();
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+    });
+
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!authReady) return;
+
+    const onAuthScreen = segments[0] === 'auth';
+    const isSignedIn = !!session;
+
+    if (!isSignedIn && !onAuthScreen) {
+      router.replace('/auth');
+    } else if (isSignedIn && onAuthScreen) {
+      router.replace('/(tabs)');
+    }
+  }, [authReady, session, segments, router]);
+
+  if (!authReady) return null;
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack>
+        <Stack.Screen name="auth" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>
