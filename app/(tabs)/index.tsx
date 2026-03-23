@@ -314,16 +314,20 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 8,
+    color: '#111',
   },
   resultLine: {
     marginBottom: 4,
+    color: '#333',
   },
   transcriptTitle: {
     marginTop: 10,
     fontWeight: '700',
+    color: '#111',
   },
   transcript: {
     marginTop: 4,
     lineHeight: 20,
+    color: '#333',
   },
 });
