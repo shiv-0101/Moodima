@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
   },
   recordButton: {
     backgroundColor: '#2563eb',
-    borderRadius: 12,
+    borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
   },
@@ -311,17 +311,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   resultTitle: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '700',
     marginBottom: 8,
-    color: '#111',
+    color: '#0e0b0b',
   },
   resultLine: {
     marginBottom: 4,
     color: '#333',
   },
   transcriptTitle: {
-    marginTop: 10,
+    marginTop: 12,
     fontWeight: '700',
     color: '#111',
   },
