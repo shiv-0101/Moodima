@@ -164,7 +164,25 @@ export default function RecordScreen() {
         throw new Error(data?.error || data?.detail || 'Prediction failed.');
       }
 
-      setResult(data as PredictResponse);
+      const predict = data as PredictResponse;
+      setResult(predict);
+
+      if (!predict.demo_mode && userId !== 'anonymous') {
+        const { error: insertError } = await supabase.from('mood_entries').insert({
+          user_id: userId,
+          verbal_emotion: predict.verbal_emotion,
+          acoustic_emotion: predict.acoustic_emotion,
+          transcript: predict.transcript,
+          verbal_score: predict.verbal_score,
+          acoustic_score: predict.acoustic_score,
+          dissonance: predict.dissonance,
+          mood_score: predict.mood_score,
+        });
+
+        if (insertError) {
+          console.warn('Failed to save mood entry:', insertError.message);
+        }
+      }
     } catch (err: any) {
       setErrorMsg(err?.message || 'Could not analyze recording.');
     } finally {
