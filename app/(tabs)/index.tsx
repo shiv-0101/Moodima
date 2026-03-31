@@ -295,13 +295,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   recordButton: {
-    backgroundColor: '#2563eb',
+    backgroundColor: '#2a5fd3',
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
   },
   recordingButton: {
-    backgroundColor: '#dc2626',
+    backgroundColor: '#a81b1b',
   },
   disabledButton: {
     opacity: 0.7,
