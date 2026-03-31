@@ -85,7 +85,7 @@ export default function HistoryScreen() {
         keyExtractor={(item) => item.id}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListEmptyComponent={
-          <Text style={styles.empty}>No history yet. Record your first check-in.</Text>
+          <Text style={styles.empty}>No history yet. Record your first video and check-in.</Text>
         }
         renderItem={({ item }) => (
           <View style={styles.card}>
