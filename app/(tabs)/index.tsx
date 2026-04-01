@@ -10,6 +10,7 @@ import {
 import { Audio } from 'expo-av';
 
 import { Text } from '@/components/Themed';
+import { notifyMoodEntriesUpdated } from '@/lib/moodEntriesBus';
 import { supabase } from '@/lib/supabase';
 
 type PredictResponse = {
@@ -181,6 +182,8 @@ export default function RecordScreen() {
 
         if (insertError) {
           console.warn('Failed to save mood entry:', insertError.message);
+        } else {
+          notifyMoodEntriesUpdated();
         }
       }
     } catch (err: any) {

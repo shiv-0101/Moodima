@@ -1,7 +1,8 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Text } from '@/components/Themed';
+import { subscribeMoodEntriesUpdated } from '@/lib/moodEntriesBus';
 import { supabase } from '@/lib/supabase';
 
 type HeatmapEntry = {
@@ -25,6 +26,20 @@ export default function HeatmapScreen() {
   const [errorMsg, setErrorMsg] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
+  const last28DayKeys = useMemo(() => {
+    const keys: string[] = [];
+    const today = new Date();
+
+    for (let i = 27; i >= 0; i -= 1) {
+      const date = new Date(today);
+      date.setHours(0, 0, 0, 0);
+      date.setDate(today.getDate() - i);
+      keys.push(date.toISOString().slice(0, 10));
+    }
+
+    return keys;
+  }, []);
+
   const loadEntries = useCallback(async () => {
     setErrorMsg('');
 
@@ -36,12 +51,17 @@ export default function HeatmapScreen() {
       return;
     }
 
+    const sinceDate = new Date();
+    sinceDate.setHours(0, 0, 0, 0);
+    sinceDate.setDate(sinceDate.getDate() - 27);
+
     const { data, error } = await supabase
       .from('mood_entries')
       .select('id, created_at, mood_score')
       .eq('user_id', userId)
+      .gte('created_at', sinceDate.toISOString())
       .order('created_at', { ascending: false })
-      .limit(28);
+      .limit(200);
 
     if (error) {
       setErrorMsg(error.message);
@@ -57,13 +77,37 @@ export default function HeatmapScreen() {
     }, [loadEntries])
   );
 
+  useEffect(() => {
+    const unsubscribe = subscribeMoodEntriesUpdated(() => {
+      void loadEntries();
+    });
+
+    return unsubscribe;
+  }, [loadEntries]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     await loadEntries();
     setRefreshing(false);
   };
 
-  const cells: Array<HeatmapEntry | null> = Array.from({ length: 28 }, (_, i) => entries[i] ?? null);
+  const latestByDay = useMemo(() => {
+    const byDay = new Map<string, HeatmapEntry>();
+
+    for (const entry of entries) {
+      const dayKey = new Date(entry.created_at).toISOString().slice(0, 10);
+      if (!byDay.has(dayKey)) {
+        byDay.set(dayKey, entry);
+      }
+    }
+
+    return byDay;
+  }, [entries]);
+
+  const cells: Array<HeatmapEntry | null> = useMemo(
+    () => last28DayKeys.map((dayKey) => latestByDay.get(dayKey) ?? null),
+    [last28DayKeys, latestByDay]
+  );
 
   return (
     <ScrollView
