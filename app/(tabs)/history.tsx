@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   FlatList,
   RefreshControl,
@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Text } from '@/components/Themed';
+import { subscribeMoodEntriesUpdated } from '@/lib/moodEntriesBus';
 import { supabase } from '@/lib/supabase';
 
 type HistoryEntry = {
@@ -58,6 +59,14 @@ export default function HistoryScreen() {
       void loadEntries();
     }, [loadEntries])
   );
+
+  useEffect(() => {
+    const unsubscribe = subscribeMoodEntriesUpdated(() => {
+      void loadEntries();
+    });
+
+    return unsubscribe;
+  }, [loadEntries]);
 
   const onRefresh = async () => {
     setRefreshing(true);
