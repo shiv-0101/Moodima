@@ -11,6 +11,7 @@ import { Audio } from 'expo-av';
 
 import { Text } from '@/components/Themed';
 import { notifyMoodEntriesUpdated } from '@/lib/moodEntriesBus';
+import { queueMoodEntry, syncMoodEntryQueue } from '@/lib/moodEntrySync';
 import { supabase } from '@/lib/supabase';
 
 type PredictResponse = {
@@ -169,7 +170,8 @@ export default function RecordScreen() {
       setResult(predict);
 
       if (!predict.demo_mode && userId !== 'anonymous') {
-        const { error: insertError } = await supabase.from('mood_entries').insert({
+        const payload = {
+          local_id: `${userId}-${Date.now()}`,
           user_id: userId,
           verbal_emotion: predict.verbal_emotion,
           acoustic_emotion: predict.acoustic_emotion,
@@ -178,12 +180,25 @@ export default function RecordScreen() {
           acoustic_score: predict.acoustic_score,
           dissonance: predict.dissonance,
           mood_score: predict.mood_score,
+        };
+
+        const { error: insertError } = await supabase.from('mood_entries').insert({
+          user_id: payload.user_id,
+          verbal_emotion: payload.verbal_emotion,
+          acoustic_emotion: payload.acoustic_emotion,
+          transcript: payload.transcript,
+          verbal_score: payload.verbal_score,
+          acoustic_score: payload.acoustic_score,
+          dissonance: payload.dissonance,
+          mood_score: payload.mood_score,
         });
 
         if (insertError) {
-          console.warn('Failed to save mood entry:', insertError.message);
+          await queueMoodEntry(payload);
+          console.warn('Saved locally for retry:', insertError.message);
         } else {
           notifyMoodEntriesUpdated();
+          void syncMoodEntryQueue(userId);
         }
       }
     } catch (err: any) {
