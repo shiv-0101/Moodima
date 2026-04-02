@@ -3,11 +3,13 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { AppState } from 'react-native';
 import 'react-native-reanimated';
 import { Redirect } from 'expo-router';
 import { useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import { syncMoodEntryQueue } from '@/lib/moodEntrySync';
 
 import { useColorScheme } from '@/components/useColorScheme';
 
@@ -76,6 +78,22 @@ function RootLayoutNav() {
       sub.subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (!authReady || !session?.user?.id) return;
+
+    void syncMoodEntryQueue(session.user.id);
+  }, [authReady, session]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && session?.user?.id) {
+        void syncMoodEntryQueue(session.user.id);
+      }
+    });
+
+    return () => subscription.remove();
+  }, [session?.user?.id]);
 
   useEffect(() => {
     if (!authReady) return;
