@@ -5,9 +5,9 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { AppState } from 'react-native';
 import 'react-native-reanimated';
-import { Redirect } from 'expo-router';
 import { useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
+import { wakeSpace } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 import { syncMoodEntryQueue } from '@/lib/moodEntrySync';
 
@@ -41,6 +41,10 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [loaded]);
+
+  useEffect(() => {
+    void wakeSpace();
+  }, []);
 
   if (!loaded) {
     return null;
