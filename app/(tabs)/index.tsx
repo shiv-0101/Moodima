@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -39,14 +41,18 @@ const DEMO_RESPONSE: PredictResponse = {
 };
 
 export default function RecordScreen() {
+  const demoDefault = (process.env.EXPO_PUBLIC_DEMO_MODE ?? '').toLowerCase();
+  const initialDemoMode = demoDefault === '1' || demoDefault === 'true' || demoDefault === 'yes';
+
   const [isRecording, setIsRecording] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [demoModeEnabled, setDemoModeEnabled] = useState(false);
+  const [demoModeEnabled, setDemoModeEnabled] = useState(initialDemoMode);
   const [errorMsg, setErrorMsg] = useState('');
   const [result, setResult] = useState<PredictResponse | null>(null);
 
   const recordingRef = useRef<Audio.Recording | null>(null);
   const autoStopTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pulseScaleRef = useRef(new Animated.Value(1));
 
   useEffect(() => {
     return () => {
@@ -57,6 +63,38 @@ export default function RecordScreen() {
       void stopAndCleanupRecordingSilently();
     };
   }, []);
+
+  useEffect(() => {
+    if (!isRecording) {
+      pulseScaleRef.current.stopAnimation();
+      pulseScaleRef.current.setValue(1);
+      return;
+    }
+
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseScaleRef.current, {
+          toValue: 1.06,
+          duration: 550,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseScaleRef.current, {
+          toValue: 1,
+          duration: 550,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    loop.start();
+
+    return () => {
+      loop.stop();
+      pulseScaleRef.current.setValue(1);
+    };
+  }, [isRecording]);
 
   const stopAndCleanupRecordingSilently = async () => {
     try {
@@ -237,23 +275,25 @@ export default function RecordScreen() {
         />
       </View>
 
-      <Pressable
-        style={[
-          styles.recordButton,
-          isRecording && styles.recordingButton,
-          isLoading && styles.disabledButton,
-        ]}
-        onPress={onRecordPress}
-        disabled={isLoading}
-      >
-        {isLoading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.recordButtonText}>
-            {isRecording ? 'Stop & Analyze' : 'Start Recording'}
-          </Text>
-        )}
-      </Pressable>
+      <Animated.View style={[styles.recordButtonWrap, { transform: [{ scale: pulseScaleRef.current }] }]}>
+        <Pressable
+          style={[
+            styles.recordButton,
+            isRecording && styles.recordingButton,
+            isLoading && styles.disabledButton,
+          ]}
+          onPress={onRecordPress}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.recordButtonText}>
+              {isRecording ? 'Stop & Analyze' : 'Start Recording'}
+            </Text>
+          )}
+        </Pressable>
+      </Animated.View>
 
       <Text style={styles.helperText}>
         {isRecording
@@ -311,6 +351,9 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  recordButtonWrap: {
+    alignSelf: 'stretch',
   },
   recordButton: {
     backgroundColor: '#2a5fd3',

@@ -24,6 +24,7 @@ const moodToLevel = (score: number) => {
 export default function HeatmapScreen() {
   const [entries, setEntries] = useState<HeatmapEntry[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const last28DayKeys = useMemo(() => {
@@ -43,32 +44,38 @@ export default function HeatmapScreen() {
   const loadEntries = useCallback(async () => {
     setErrorMsg('');
 
-    const { data: sessionData } = await supabase.auth.getSession();
-    const userId = sessionData.session?.user?.id;
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user?.id;
 
-    if (!userId) {
-      setEntries([]);
-      return;
+      if (!userId) {
+        setEntries([]);
+        return;
+      }
+
+      const sinceDate = new Date();
+      sinceDate.setHours(0, 0, 0, 0);
+      sinceDate.setDate(sinceDate.getDate() - 27);
+
+      const { data, error } = await supabase
+        .from('mood_entries')
+        .select('id, created_at, mood_score')
+        .eq('user_id', userId)
+        .gte('created_at', sinceDate.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(200);
+
+      if (error) {
+        setErrorMsg(error.message);
+        return;
+      }
+
+      setEntries((data as HeatmapEntry[]) ?? []);
+    } catch {
+      setErrorMsg('Failed to load heatmap data. Pull to retry.');
+    } finally {
+      setIsInitialLoading(false);
     }
-
-    const sinceDate = new Date();
-    sinceDate.setHours(0, 0, 0, 0);
-    sinceDate.setDate(sinceDate.getDate() - 27);
-
-    const { data, error } = await supabase
-      .from('mood_entries')
-      .select('id, created_at, mood_score')
-      .eq('user_id', userId)
-      .gte('created_at', sinceDate.toISOString())
-      .order('created_at', { ascending: false })
-      .limit(200);
-
-    if (error) {
-      setErrorMsg(error.message);
-      return;
-    }
-
-    setEntries((data as HeatmapEntry[]) ?? []);
   }, []);
 
   useFocusEffect(
@@ -119,7 +126,16 @@ export default function HeatmapScreen() {
 
       {!!errorMsg && <Text style={styles.error}>{errorMsg}</Text>}
 
-      {entries.length === 0 ? (
+      {isInitialLoading ? (
+        <View style={styles.skeletonWrap}>
+          <View style={styles.skeletonTitle} />
+          <View style={styles.skeletonGrid}>
+            {Array.from({ length: 28 }, (_, idx) => (
+              <View key={idx} style={styles.skeletonCell} />
+            ))}
+          </View>
+        </View>
+      ) : entries.length === 0 ? (
         <Text style={styles.empty}>No entries yet. Record your first check-in.</Text>
       ) : (
         <>
@@ -166,6 +182,27 @@ const styles = StyleSheet.create({
   empty: {
     marginTop: 12,
     opacity: 0.8,
+  },
+  skeletonWrap: {
+    marginTop: 4,
+  },
+  skeletonTitle: {
+    height: 14,
+    width: '50%',
+    borderRadius: 8,
+    backgroundColor: '#e5e7eb',
+    marginBottom: 12,
+  },
+  skeletonGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  skeletonCell: {
+    width: '12%',
+    aspectRatio: 1,
+    borderRadius: 6,
+    backgroundColor: '#e5e7eb',
   },
   grid: {
     flexDirection: 'row',
