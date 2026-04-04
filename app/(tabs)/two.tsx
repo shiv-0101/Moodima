@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Text } from '@/components/Themed';
 import { subscribeMoodEntriesUpdated } from '@/lib/moodEntriesBus';
@@ -22,6 +23,7 @@ const moodToLevel = (score: number) => {
 };
 
 export default function HeatmapScreen() {
+  const router = useRouter();
   const [entries, setEntries] = useState<HeatmapEntry[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
   const [isInitialLoading, setIsInitialLoading] = useState(true);
@@ -116,6 +118,37 @@ export default function HeatmapScreen() {
     [last28DayKeys, latestByDay]
   );
 
+  const weeklyBars = useMemo(() => {
+    const days: Array<{ key: string; label: string }> = [];
+    const today = new Date();
+
+    for (let i = 6; i >= 0; i -= 1) {
+      const date = new Date(today);
+      date.setHours(0, 0, 0, 0);
+      date.setDate(today.getDate() - i);
+      days.push({
+        key: date.toISOString().slice(0, 10),
+        label: date.toLocaleDateString(undefined, { weekday: 'short' }),
+      });
+    }
+
+    return days.map((day) => {
+      const dayEntries = entries.filter(
+        (entry) => new Date(entry.created_at).toISOString().slice(0, 10) === day.key
+      );
+
+      const average =
+        dayEntries.length === 0
+          ? 0
+          : dayEntries.reduce((sum, entry) => sum + entry.mood_score, 0) / dayEntries.length;
+
+      return {
+        label: day.label,
+        value: average,
+      };
+    });
+  }, [entries]);
+
   return (
     <ScrollView
       contentContainerStyle={styles.container}
@@ -136,7 +169,12 @@ export default function HeatmapScreen() {
           </View>
         </View>
       ) : entries.length === 0 ? (
-        <Text style={styles.empty}>No entries yet. Record your first check-in.</Text>
+        <View style={styles.emptyWrap}>
+          <Text style={styles.empty}>No entries yet. Record your first check-in.</Text>
+          <Pressable style={styles.ctaButton} onPress={() => router.push('/(tabs)')}>
+            <Text style={styles.ctaButtonText}>Go To Record</Text>
+          </Pressable>
+        </View>
       ) : (
         <>
           <View style={styles.grid}>
@@ -154,6 +192,19 @@ export default function HeatmapScreen() {
               ))}
             </View>
             <Text style={styles.legendText}>High</Text>
+          </View>
+
+          <View style={styles.weeklyWrap}>
+            <Text style={styles.weeklyTitle}>Weekly Mood Average</Text>
+            {weeklyBars.map((bar, idx) => (
+              <View key={idx} style={styles.weeklyRow}>
+                <Text style={styles.weeklyLabel}>{bar.label}</Text>
+                <View style={styles.weeklyBarTrack}>
+                  <View style={[styles.weeklyBarFill, { width: `${Math.max(0, Math.min(100, bar.value * 10))}%` }]} />
+                </View>
+                <Text style={styles.weeklyValue}>{bar.value.toFixed(1)}</Text>
+              </View>
+            ))}
           </View>
         </>
       )}
@@ -179,9 +230,23 @@ const styles = StyleSheet.create({
     color: '#dc2626',
     marginBottom: 10,
   },
-  empty: {
+  emptyWrap: {
     marginTop: 12,
+    alignItems: 'flex-start',
+  },
+  empty: {
     opacity: 0.8,
+  },
+  ctaButton: {
+    marginTop: 10,
+    backgroundColor: '#2563eb',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 8,
+  },
+  ctaButtonText: {
+    color: '#fff',
+    fontWeight: '700',
   },
   skeletonWrap: {
     marginTop: 4,
@@ -232,5 +297,47 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: 12,
     opacity: 0.8,
+  },
+  weeklyWrap: {
+    marginTop: 18,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
+    padding: 12,
+    backgroundColor: '#fff',
+    gap: 8,
+  },
+  weeklyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  weeklyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  weeklyLabel: {
+    width: 34,
+    fontSize: 12,
+    opacity: 0.8,
+  },
+  weeklyBarTrack: {
+    flex: 1,
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: '#e5e7eb',
+    overflow: 'hidden',
+  },
+  weeklyBarFill: {
+    height: '100%',
+    borderRadius: 999,
+    backgroundColor: '#2563eb',
+  },
+  weeklyValue: {
+    width: 28,
+    textAlign: 'right',
+    fontSize: 12,
+    color: '#1f2937',
   },
 });
