@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   FlatList,
+  Pressable,
   RefreshControl,
   StyleSheet,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Text } from '@/components/Themed';
 import { subscribeMoodEntriesUpdated } from '@/lib/moodEntriesBus';
@@ -22,6 +24,7 @@ type HistoryEntry = {
 };
 
 export default function HistoryScreen() {
+  const router = useRouter();
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
@@ -113,7 +116,12 @@ export default function HistoryScreen() {
         keyExtractor={(item) => item.id}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListEmptyComponent={
-          <Text style={styles.empty}>No history yet. Record your first video and check-in.</Text>
+          <View style={styles.emptyWrap}>
+            <Text style={styles.empty}>No history yet. Record your first video and check-in.</Text>
+            <Pressable style={styles.ctaButton} onPress={() => router.push('/(tabs)')}>
+              <Text style={styles.ctaButtonText}>Go To Record</Text>
+            </Pressable>
+          </View>
         }
         renderItem={({ item }) => (
           <View style={styles.card}>
@@ -192,9 +200,23 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: 18,
   },
-  empty: {
+  emptyWrap: {
     marginTop: 16,
+    alignItems: 'flex-start',
+  },
+  empty: {
     opacity: 0.8,
+  },
+  ctaButton: {
+    marginTop: 10,
+    backgroundColor: '#2563eb',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 8,
+  },
+  ctaButtonText: {
+    color: '#fff',
+    fontWeight: '700',
   },
   card: {
     borderWidth: 1,
